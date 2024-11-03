@@ -23,6 +23,7 @@ def debug_show_image(image, title="Captured Image"):
 
 # Start video capture from camera
 cap = cv2.VideoCapture(0)  # Use 0 for default camera
+cap.set(cv2.CAP_PROP_FPS, 10)
 
 # Parameters for detection area
 x, y, w, h = 100, 100, 300, 300
