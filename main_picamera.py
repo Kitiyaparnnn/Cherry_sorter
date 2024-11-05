@@ -2,52 +2,52 @@ import cv2
 import numpy as np
 import time
 from picamera2 import Picamera2
-import torch
-from torchvision import transforms
-import cv2
+import tensorflow as tf
+from tensorflow.lite.python.interpreter import Interpreter
+from PIL import Image
 
-# Load your model (adjust the path if needed)
-model = torch.load("your_model.pt")
-model.eval()
+# --- Model ---
+# Load the TFLite model and allocate tensors
+interpreter = Interpreter(model_path="best_model.tflite")
+interpreter.allocate_tensors()
 
-# Preprocessing transformations (adjust as needed for your model)
-preprocess = transforms.Compose([
-    transforms.ToPILImage(),                 # Convert OpenCV image (NumPy array) to PIL image
-    transforms.Resize((224, 224)),           # Resize to model's input size
-    transforms.ToTensor(),                   # Convert to tensor
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # Normalize
-])
+# Get input and output details
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
+# Image preprocessing function
 def preprocess_image(image):
-    """
-    Preprocesses the input image for model prediction.
-    Args:
-        image (numpy array): The captured image in BGR format (OpenCV format).
-    Returns:
-        torch.Tensor: The preprocessed image ready for model input.
-    """
-    # Convert BGR (OpenCV) to RGB format for PIL
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    # Apply transformations
-    input_tensor = preprocess(image_rgb)
-    # Add a batch dimension
-    input_tensor = input_tensor.unsqueeze(0)
-    return input_tensor
+    input_shape = input_details[0]['shape']
+    image = cv2.resize(image, (input_shape[1], input_shape[2]))
+    image = np.expand_dims(image, axis=0)
+    image = image.astype(np.float32) / 255.0
+    return image
 
+# Function for making predictions
+def predict_tflite(image):
+    interpreter.set_tensor(input_details[0]['index'], image)
+    interpreter.invoke()
+    output_data = interpreter.get_tensor(output_details[0]['index'])
+    prediction = np.argmax(output_data)
+    return "Class 1" if prediction == 1 else "Class 0"
+
+# --- Camera ---
 # Debug function to display captured image
-def debug_show_image(image, title="Captured Image"):
+def debug_show_image(image,pred, title="Captured Image"):
+    # Display prediction on frame
+    cv2.putText(frame, pred, cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
     cv2.imshow(title, image)
     cv2.waitKey(0)
     cv2.destroyWindow(title)
 
 # Initialize PiCamera2
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (640, 480)})
+config = picam2.create_preview_configuration(main={"size": (640, 1000)})
 picam2.configure(config)
 picam2.start()
 
 # Parameters for detection area
-x, y, w, h = 100, 100, 300, 300
+x, y, w, h = 150, 560, 300, 300
 delay_seconds = 10  # Set delay before capture
 capture_start_time = None  # Timer variable
 
@@ -70,13 +70,14 @@ while True:
         # Crop and preprocess the region of interest (ROI) inside the boundary
         roi = frame[y:y+h, x:x+w]
         # Process or classify the ROI here (e.g., pass it to a model)
-        input_tensor = preprocess_image(roi)  # roi is the cropped image
-        with torch.no_grad():
-            prediction = model(input_tensor)
-            predicted_class = prediction.argmax().item()
+        subject_img = preprocess_image(roi)
+        prediction = predict_tflite(subject_img)
+
+        # Display prediction on frame
+        cv2.putText(frame, prediction, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         
         # Display captured ROI for debugging
-        debug_show_image(roi)
+        debug_show_image(roi,prediction)
 
         # Reset timer to wait before the next capture
         capture_start_time = time.time()
