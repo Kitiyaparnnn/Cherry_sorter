@@ -1,3 +1,5 @@
+#============= code in the pi
+
 import cv2
 import numpy as np
 import time
@@ -18,7 +20,7 @@ output_details = interpreter.get_output_details()
 def preprocess_image(image):  
     input_shape = input_details[0]['shape']
     image = cv2.resize(image, (input_shape[1], input_shape[2]))
-    image = np.expand_dims(image, axis=0)
+    image = np.expand_dims(image, axis=0).astype(np.float32)
     image = image.astype(np.float32) / 255.0
     return image
 
@@ -27,22 +29,23 @@ def predict_tflite(image):
     interpreter.set_tensor(input_details[0]['index'], image)
     interpreter.invoke()
     output_data = interpreter.get_tensor(output_details[0]['index'])
-    prediction = np.argmax(output_data)
+    prediction = 1 if output_data > 0.5 else 0
     print("Predict!")
-    return "Bad" if prediction == 1 else "Good"
+    return prediction
 
 # --- Camera ---
 # Debug function to display captured image
 def debug_show_image(image, title="Captured Image"):
     # Display prediction on frame
     cv2.imshow(title, image)
+    #save_image(image,'/home/coffeecolor/testimage1.jpg')
     cv2.waitKey(0)
     cv2.destroyWindow(title)
 
 def save_image(image, file_path):
     # Save the image using OpenCV
     cv2.imwrite(file_path, image)
-    print(f"Image saved!")
+    print(f"Image saved: {file_path}")
 
 # Initialize PiCamera2
 picam2 = Picamera2()
@@ -52,10 +55,15 @@ picam2.start()
 
 # Parameters for detection area
 x, y, w, h = 210, 570, 300, 300
+# red position
+x, y, w, h = 210, 100, 300, 300 
+# green position
+x, y, w, h = 210, 500, 300, 300 
+
 delay_seconds = 10  # Set delay before capture
 capture_start_time = None  # Timer variable
 prediction = "" # Initial prediction
-file_path = "/home/pi/captured_images/"
+file_path = "/home/coffeecolor/captured/"
 
 while True:
     # Capture frame from PiCamera2
@@ -86,7 +94,7 @@ while True:
         capture_start_time = time.time()
 
         # Save caputred image for collecting dataset
-        save_image(subject_img,file_path + str(round(capture_start_time)) + ".jpg")
+        #save_image(roi,file_path + str(round(capture_start_time)) + ".jpg")
 
     # Display frame with bounding box
     cv2.imshow('Camera', frame)

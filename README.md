@@ -1,11 +1,19 @@
 # Cherry_sorting
 
-### Step 1: Install TensorFlow Lite Interpreter on Raspberry Pi
+**Library**
 
 Make sure TensorFlow Lite runtime is installed on the Raspberry Pi. You can install it with:
 
 `pip3 install tflite-runtime`
 
-### Step 2: Run main.py
+### Step 1: Activate a virtual environment on Raspberry Pi named "tflite-env"
 
-`python3 your_script.py`
+`source tflite-env/bin/activate`
+
+### Step 2: redirect to the project file
+
+`cd Cherry_sorter/`
+
+### Step 3: Run main_picamera.py
+
+`python main_picamera.py`
