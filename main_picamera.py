@@ -3,9 +3,27 @@
 import cv2
 import numpy as np
 import time
+from time import sleep 
 from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 from PIL import Image
+import RPi.GPIO as GPIO
+
+# --- Servo ---
+GPIO.setmode(GPIO.BOARD) # Sets the pin numbering system to use the physical layout
+# Set up pin 11 for PWM
+GPIO.setup(11,GPIO.OUT)  # Sets up pin 11 to an output (instead of an input)
+servo = GPIO.PWM(11, 50)     # Sets up pin 11 as a PWM pin
+servo.start(0)               # Starts running PWM on the pin and sets it to 0
+
+def servo_movement(pred):
+    if pred == 1:
+        servo.ChangeDutyCycle(2.5)     # left
+        sleep(1) 
+    else:                
+        servo.ChangeDutyCycle(12)      # right
+        sleep(1)   
+    servo.ChangeDutyCycle(7.5)         # middle 
 
 # --- Model ---
 # Load the TFLite model and allocate tensors
@@ -30,7 +48,7 @@ def predict_tflite(image):
     interpreter.invoke()
     output_data = interpreter.get_tensor(output_details[0]['index'])
     prediction = 1 if output_data > 0.5 else 0
-    print("Predict!")
+    #print("Predict!", output_data)
     return prediction
 
 # --- Camera ---
@@ -54,11 +72,11 @@ picam2.configure(config)
 picam2.start()
 
 # Parameters for detection area
-x, y, w, h = 210, 570, 300, 300
+#x, y, w, h = 210, 570, 300, 300
 # red position
-x, y, w, h = 210, 100, 300, 300 
+#x, y, w, h = 210, 100, 300, 300 
 # green position
-x, y, w, h = 210, 500, 300, 300 
+x, y, w, h = 210, 400, 300, 300 
 
 delay_seconds = 10  # Set delay before capture
 capture_start_time = None  # Timer variable
@@ -98,6 +116,9 @@ while True:
 
     # Display frame with bounding box
     cv2.imshow('Camera', frame)
+    
+    # Control servo
+    servo_movement(prediction)
 
     # Break the loop with 'q'
     key = cv2.waitKey(1) & 0xFF
@@ -106,3 +127,5 @@ while True:
 
 picam2.stop()
 cv2.destroyAllWindows()
+servo.stop()                 # At the end of the program, stop the PWM
+GPIO.cleanup()  
