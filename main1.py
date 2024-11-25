@@ -57,7 +57,7 @@ def predict_tflite(image):
 
 # --- Camera Setup ---
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (640, 480), "format": "RGB888"})
+config = picam2.create_preview_configuration(main={"size": (640, 1000), "format": "RGB888"})
 picam2.configure(config)
 picam2.start()
 
@@ -81,6 +81,11 @@ def image_classification(prediction_queue):
         # Display frame with bounding box
         cv2.imshow('Camera', frame)
         
+        # Break the loop with 'q'
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q'):
+            break
+        
         # Add the prediction to the queue
         if not prediction_queue.full():  # Avoid blocking if queue is full
             prediction_queue.put(prediction)
@@ -91,7 +96,7 @@ def image_classification(prediction_queue):
 
 # --- Main Program ---
 if __name__ == "__main__":
-    prediction_queue = queue.Queue(maxsize=5)  # Queue to share predictions between threads
+    prediction_queue = queue.Queue()  # Queue to share predictions between threads
 
     # Create and start threads
     prediction_thread = threading.Thread(target=image_classification, args=(prediction_queue,))
