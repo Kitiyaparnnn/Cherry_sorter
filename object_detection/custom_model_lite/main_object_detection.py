@@ -7,20 +7,21 @@ import numpy as np
 from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 import RPi.GPIO as GPIO
+from gpiozero import AngularServo
 
 # GPIO port setup
 GPIO.setmode(GPIO.BOARD)
-ir_sensor = 4
+ir_sensor = 5
 servo_moter = 11
 
 # --- IR Sensor Setup ---
+""" Result: 0-obstuct, 1-clear"""
 GPIO.setup(ir_sensor,GPIO.IN)
-ir = GPIO.input(ir_sensor)
 
 # --- Servo Setup ---
 GPIO.setup(servo_moter, GPIO.OUT)
 servo = GPIO.PWM(servo_moter, 50)
-servo.start(0)
+servo.start(2.5)
 
 def servo_movement(prediction_queue):
     """
@@ -31,10 +32,13 @@ def servo_movement(prediction_queue):
         try:
             # Get the next prediction from the queue
             prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
+
+            # Fetch the updated IR sensor value
+            ir = GPIO.input(ir_sensor)
             
             # Move the servo based on the prediction when ir sensor triggers
-            if prediction == 0 and ir == 0:
-                servo.ChangeDutyCycle(12)  # Move right
+            if np.any(prediction == 0) and ir == 0:
+                servo.ChangeDutyCycle(12.5)  # Move right
                 sleep(0.5)
                 servo.ChangeDutyCycle(7.5)  # Center position
             # servo.ChangeDutyCycle(0)  # Stop servo
@@ -138,17 +142,16 @@ def image_classification(prediction_queue):
             break
         
         # Add the prediction to the queue
-        if not prediction_queue.full():  # Avoid blocking if queue is full
-            prediction_queue.put(classes)
-            
-        else:
+        try:
+            prediction_queue.put_nowait(classes)
+        except queue.Full:
             print("Prediction queue is full. Dropping oldest prediction.")
-            prediction_queue.get()  # Remove the oldest prediction
-            prediction_queue.put(classes)
+            prediction_queue.get_nowait()  # Remove the oldest prediction
+            prediction_queue.put_nowait(classes)
 
 # --- Main Program ---
 if __name__ == "__main__":
-    prediction_queue = queue.Queue()  # Queue to share predictions between threads
+    prediction_queue = queue.Queue(maxsize=5)  # Queue to share predictions between threads
 
     # Create and start threads
     prediction_thread = threading.Thread(target=image_classification, args=(prediction_queue,))
@@ -165,3 +168,4 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
     servo.stop()
     GPIO.cleanup()
+
