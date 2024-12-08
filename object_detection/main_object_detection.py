@@ -8,14 +8,18 @@ from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 import RPi.GPIO as GPIO
 
+# GPIO port setup
+GPIO.setmode(GPIO.BOARD)
+ir_sensor = 4
+servo_moter = 11
 
-# --- Sensor Setup ---
-
+# --- IR Sensor Setup ---
+GPIO.setup(ir_sensor,GPIO.IN)
+ir = GPIO.input(ir_sensor)
 
 # --- Servo Setup ---
-GPIO.setmode(GPIO.BOARD)
-GPIO.setup(11, GPIO.OUT)
-servo = GPIO.PWM(11, 50)
+GPIO.setup(servo_moter, GPIO.OUT)
+servo = GPIO.PWM(servo_moter, 50)
 servo.start(0)
 
 def servo_movement(prediction_queue):
@@ -25,18 +29,16 @@ def servo_movement(prediction_queue):
     """
     while True:
         try:
-            # Wait for 10 seconds before processing the next prediction
-            # sleep(10)
-            
             # Get the next prediction from the queue
             prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
             
-            # Move the servo based on the prediction 
-            if prediction == 0: #!!!Add sensor condition here
+            # Move the servo based on the prediction when ir sensor triggers
+            if prediction == 0 and ir == 0:
                 servo.ChangeDutyCycle(12)  # Move right
                 sleep(0.5)
                 servo.ChangeDutyCycle(7.5)  # Center position
             # servo.ChangeDutyCycle(0)  # Stop servo
+
         except queue.Empty:
             print("Servo thread: Queue is empty, skipping this cycle.")
 
@@ -73,17 +75,6 @@ def preprocess_image(image):
         input_data = (np.float32(input_data) - input_mean) / input_std
 
     return input_data
-
-def predict_tflite(image):
-    interpreter.set_tensor(input_details[0]['index'], image)
-    interpreter.invoke()
-    output_data = interpreter.get_tensor(output_details[0]['index'])
-    prediction = 1 if output_data > 0.5 else 0
-
-    # Perform the actual detection by running the model with the image as input
-    interpreter.set_tensor(input_details[0]['index'],input_data)
-    interpreter.invoke()
-    return prediction
 
 # --- Camera Setup ---
 picam2 = Picamera2()
