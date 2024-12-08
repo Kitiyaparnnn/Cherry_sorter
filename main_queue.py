@@ -8,6 +8,9 @@ from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 import RPi.GPIO as GPIO
 
+# --- Sensor Setup ---
+
+
 # --- Servo Setup ---
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(11, GPIO.OUT)
@@ -24,10 +27,8 @@ def servo_movement(prediction_queue):
             # Get the next prediction from the queue
             prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
             
-            # Move the servo based on the prediction
-            if prediction == 1:
-                servo.ChangeDutyCycle(0)  # Move left
-            elif prediction == 0:
+            # Move the servo based on the prediction 
+            if prediction == 0: #!!!Add sensor condition here
                 servo.ChangeDutyCycle(12)  # Move right
                 sleep(0.5)
                 servo.ChangeDutyCycle(7.5)  # Center position
@@ -61,7 +62,7 @@ config = picam2.create_preview_configuration(main={"size": (640, 1000), "format"
 picam2.configure(config)
 picam2.start()
 
-x, y, w, h = 210, 400, 200, 200 
+x, y, w, h = 350, 400, 100, 100 
 
 # --- Image Classification Thread ---
 def image_classification(prediction_queue):
@@ -78,6 +79,8 @@ def image_classification(prediction_queue):
         
         # Draw outer green rectangle for subject detection area
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        # Display current time and prediction
+        cv2.putText(frame, "Predict: {prediction}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
         # Display frame with bounding box
         cv2.imshow('Camera', frame)
         
@@ -88,11 +91,16 @@ def image_classification(prediction_queue):
         
         # Add the prediction to the queue
         if not prediction_queue.full():  # Avoid blocking if queue is full
-            prediction_queue.put(prediction)
+            # if prediction == 0 and prediction_queue.empty():
+            if prediction == 0 :
+                prediction_queue.put(prediction)
+            
         else:
             print("Prediction queue is full. Dropping oldest prediction.")
             prediction_queue.get()  # Remove the oldest prediction
             prediction_queue.put(prediction)
+
+        # sleep(0.5) # delay for dectect next cherry
 
 # --- Main Program ---
 if __name__ == "__main__":
