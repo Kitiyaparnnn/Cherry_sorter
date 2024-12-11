@@ -33,7 +33,7 @@ def servo_movement(prediction_queue):
             prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
             
             # Move the servo based on the prediction when ir sensor triggers
-            if np.any(prediction == 0) and ir == 0:
+            if np.any(prediction == 0):
                 servo.ChangeDutyCycle(10)  # Move right
                 sleep(0.5)
                 servo.ChangeDutyCycle(85)  # Center position
