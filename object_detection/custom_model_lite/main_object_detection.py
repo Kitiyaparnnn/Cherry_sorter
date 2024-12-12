@@ -33,7 +33,7 @@ def servo_movement(prediction_queue):
             prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
             
             # Move the servo based on the prediction when ir sensor triggers
-            if np.any(prediction == 0):
+            if np.any(prediction == 0) and ir == 0:
                 servo.ChangeDutyCycle(10)  # Move right
                 sleep(0.5)
                 servo.ChangeDutyCycle(85)  # Center position
@@ -78,11 +78,11 @@ def preprocess_image(image):
 
 # --- Camera Setup ---
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (480,1080), "format": "RGB888"})
+config = picam2.create_preview_configuration(main={"size": (480,480), "format": "RGB888"})
 picam2.configure(config)
 picam2.start()
 
-# x, y, w, h = 150, 100, 200, 200
+x, y, w, h = 150, 100, 200, 200
 
 # --- Image Classification Thread ---
 def image_classification(prediction_queue):
@@ -91,14 +91,16 @@ def image_classification(prediction_queue):
     while True:
         # Capture frame from PiCamera2
         frame = picam2.capture_array()
-        #roi = frame[y:y+h, x:x+w]
+        roi = frame[y:y+h, x:x+w]
         # Draw outer green rectangle for subject detection area
-        # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 3)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 3)
         
-        imH, imW, _ = frame.shape
+        #--chage frame
+        imH, imW, _ = roi.shape
         
         # Perform the actual detection by running the model with the image as input
-        input_data = preprocess_image(frame)
+        #--chage frame
+        input_data = preprocess_image(roi) 
         interpreter.set_tensor(input_details[0]['index'],input_data)
         interpreter.invoke()
 
@@ -120,15 +122,18 @@ def image_classification(prediction_queue):
             ymax = int(min(imH,(boxes[0][2] * imH)))
             xmax = int(min(imW,(boxes[0][3] * imW)))
 
-            cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
+            #--chage frame
+            cv2.rectangle(roi, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2) 
 
             # Draw label
             object_name = labels[int(classes[0])] # Look up object name from "labels" array using class index
             label = '%s: %d%%' % (object_name, int(scores[0]*100)) # Example: 'person: 72%'
             labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
             label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
-            cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
-            cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
+            #--chage frame
+            cv2.rectangle(roi, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
+            #--chage frame
+            cv2.putText(roi, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
                 
             # Add the prediction to the queue
             if not prediction_queue.full():  # Avoid blocking if queue is full
