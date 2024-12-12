@@ -78,11 +78,11 @@ def preprocess_image(image):
 
 # --- Camera Setup ---
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (480,1080), "format": "RGB888"})
+config = picam2.create_preview_configuration(main={"size": (640,640), "format": "RGB888"})
 picam2.configure(config)
 picam2.start()
 
-# x, y, w, h = 150, 100, 200, 200
+x, y, w, h = 150, 100, 200, 200
 
 # --- Image Classification Thread ---
 def image_classification(prediction_queue):
@@ -149,7 +149,7 @@ def image_classification(prediction_queue):
             break
         
         print("qeue: ", prediction_queue.queue)
-        sleep(1)
+        sleep(0.5)
 
 # --- Main Program ---
 if __name__ == "__main__":
