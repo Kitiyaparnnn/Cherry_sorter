@@ -93,7 +93,7 @@ def image_classification(prediction_queue):
         frame = picam2.capture_array()
         #roi = frame[y:y+h, x:x+w]
         # Draw outer green rectangle for subject detection area
-        # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 3)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 3)
         
         imH, imW, _ = frame.shape
         
