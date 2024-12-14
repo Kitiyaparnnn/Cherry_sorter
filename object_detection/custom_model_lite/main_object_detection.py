@@ -78,7 +78,7 @@ def preprocess_image(image):
 
 # --- Camera Setup ---
 picam2 = Picamera2()
-config = picam2.create_preview_configuration(main={"size": (480,480), "format": "RGB888"})
+config = picam2.create_still_configuration(main={"size": (640,640), "format": "RGB888"})
 picam2.configure(config)
 picam2.start()
 
