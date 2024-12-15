@@ -37,7 +37,7 @@ def servo_movement(prediction_queue, stop_event):
             
             if ir != GPIO.LOW:
                 ir_count += 1
-            if ir_count > 4:
+            if ir_count > 7:
                 # Get the next prediction from the queue
                 prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
                 
@@ -49,7 +49,7 @@ def servo_movement(prediction_queue, stop_event):
                 # servo.ChangeDutyCycle(0)  # Stop servo
                 
                 ir_count = 0
-            sleep(0.5)
+            #sleep(0.5)
             
         except queue.Empty:
             continue
