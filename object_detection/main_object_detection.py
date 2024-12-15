@@ -8,6 +8,8 @@ from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 import RPi.GPIO as GPIO
 
+# Stop signal (shared event)
+stop_event = threading.Event()
 
 # GPIO port setup
 GPIO.setmode(GPIO.BOARD)
@@ -22,14 +24,15 @@ GPIO.setup(servo_moter, GPIO.OUT)
 servo = GPIO.PWM(servo_moter, 50)
 servo.start(2.5)
 
-ir = GPIO.input(ir_sensor_gpio)
-def servo_movement(prediction_queue, ir):
+
+def servo_movement(prediction_queue, stop_event):
     """
     Control the servo based on predictions from the queue.
     Result: 0-bad, 1-good
     """
+    ir = GPIO.input(ir_sensor_gpio)
     ir_count = 0
-    while True:
+    while not stop_event.is_set():
         try:
             
             if ir != GPIO.LOW:
@@ -52,8 +55,8 @@ def servo_movement(prediction_queue, ir):
             continue
 
 # --- Prediction Setup ---
-PATH_TO_LABELS = 'custom_model_lite_new/labelmap.txt'
-PATH_TO_MODEL = 'custom_model_lite_new/detect.tflite'
+PATH_TO_LABELS = 'custom_model_lite_new2/labelmap.txt'
+PATH_TO_MODEL = 'custom_model_lite_new2/detect.tflite'
 
 # Load the label map into memory
 with open(PATH_TO_LABELS, 'r') as f:
@@ -69,6 +72,7 @@ output_details = interpreter.get_output_details()
 height = input_details[0]['shape'][1]
 width = input_details[0]['shape'][2]
 
+
 float_input = (input_details[0]['dtype'] == np.float32)
 
 input_mean = 127.5
@@ -81,7 +85,7 @@ def preprocess_image(image):
 
      # Normalize pixel values if using a floating model (i.e. if model is non-quantized)
     if float_input:
-        input_data = np.float32(input_data)
+        input_data = (np.float32(input_data) - input_mean) / input_std
 
     return input_data
 
@@ -93,17 +97,17 @@ picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
 x, y, w, h = 0, 0, 500,500
-delay = 0.5 #second unit
-
-good_cherry = 0
-bad_cherry = 0
+delay = 0.5 #scond unit
+min_conf = 0.7
 
 # --- Image Classification Thread ---
-def image_classification(prediction_queue, good_cherry, bad_cherry):
+def image_classification(prediction_queue, stop_event):
     """Capture images, make predictions, and add them to the queue."""
 
-    print("start detection")
-    while True:
+    good_cherry = 0
+    bad_cherry = 0
+    
+    while not stop_event.is_set():
         # Capture frame from PiCamera2
         frame = picam2.capture_array()
         roi = frame[y:y+h, x:x+w]
@@ -129,7 +133,7 @@ def image_classification(prediction_queue, good_cherry, bad_cherry):
 
         # Loop over all detections and draw detection box if confidence is above minimum threshold
         for i in range(len(scores)):
-            if ((scores[i] > 0.85) and (scores[i] <= 1.0)):
+            if ((scores[i] > min_conf) and (scores[i] <= 1.0)):
 
                 # Get bounding box coordinates and draw box
                 # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
@@ -165,34 +169,35 @@ def image_classification(prediction_queue, good_cherry, bad_cherry):
                     good_cherry += 1
                 else:
                     bad_cherry += 1
-
         
         # Display frame with bounding box
         cv2.imshow('Camera', frame)
-
-        # Break the loop with 'q'
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
-            break
         
         print("qeue: ", prediction_queue.queue)
         sleep(delay) #second unit
+        
+        # Check for 'q' key press to stop
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            print("Stopping threads...")
+            stop_event.set()
+            break
+        
+    print(f"---\n Summary:\n good cherries: {good_cherry}, bad cherries: {bad_cherry}\n ---\n")
 
 # --- Main Program ---
 if __name__ == "__main__":
     prediction_queue = queue.Queue()  # Queue to share predictions between threads
 
     # Create and start threads
-    prediction_thread = threading.Thread(target=image_classification, args=(prediction_queue,good_cherry,bad_cherry))
-    servo_thread = threading.Thread(target=servo_movement, args=(prediction_queue,ir))
+    prediction_thread = threading.Thread(target=image_classification, args=(prediction_queue,stop_event))
+    servo_thread = threading.Thread(target=servo_movement, args=(prediction_queue, stop_event))
     prediction_thread.start()
     servo_thread.start()
 
     # Join thrveads (optional, for cleanup on program termination)
     prediction_thread.join()
     servo_thread.join()
-    
-    print(f"---\n Summary:\n good cherries: {good_cherry}, bad cherries: {bad_cherry}\n ---\n")
+
 
     # Cleanup
     picam2.stop()
