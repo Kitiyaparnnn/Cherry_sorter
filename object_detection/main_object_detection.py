@@ -7,6 +7,9 @@ import numpy as np
 from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 import RPi.GPIO as GPIO
+from tkinter import * 
+from tkinter.ttk import *
+from PIL import Image as Pil_image, ImageTk as Pil_imageTk
 
 # Stop signal (shared event)
 stop_event = threading.Event()
@@ -72,7 +75,6 @@ output_details = interpreter.get_output_details()
 height = input_details[0]['shape'][1]
 width = input_details[0]['shape'][2]
 
-
 float_input = (input_details[0]['dtype'] == np.float32)
 
 input_mean = 127.5
@@ -96,7 +98,7 @@ picam2.configure(config)
 picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
-x, y, w, h = 0, 0, 500,500
+# x, y, w, h = 0, 0, 500,500
 delay = 0.5 #scond unit
 min_conf = 0.7
 
@@ -106,83 +108,88 @@ def image_classification(prediction_queue, stop_event):
 
     good_cherry = 0
     bad_cherry = 0
-    
+
+    # --- GUI Setup ---
+    window = Tk()
+    window.title("Cherry Sorter")  
+
+    # Define an image label once (to update dynamically later)
+    img_label = Label(window)
+    img_label.grid(row=0, column=0, columnspan=2, rowspan=5, padx=5, pady=5)
+
     while not stop_event.is_set():
         # Capture frame from PiCamera2
         frame = picam2.capture_array()
-        roi = frame[y:y+h, x:x+w]
-        # Draw outer green rectangle for subject detection area
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 255), 3)
-        
-        #--chage frame
-        imH, imW, _ = roi.shape
-        
-        # Perform the actual detection by running the model with the image as input
-        #--chage frame
-        input_data = preprocess_image(roi) 
-        interpreter.set_tensor(input_details[0]['index'],input_data)
+
+        # Perform preprocessing and object detection
+        input_data = preprocess_image(frame)
+        interpreter.set_tensor(input_details[0]['index'], input_data)
         interpreter.invoke()
 
         # Retrieve detection results
-        boxes = interpreter.get_tensor(output_details[1]['index'])[0] # Bounding box coordinates of detected objects
-        classes = interpreter.get_tensor(output_details[3]['index'])[0] # Class index of detected objects
-        scores = interpreter.get_tensor(output_details[0]['index'])[0] # Confidence of detected objects
-        
-        print("Score:", scores)
+        boxes = interpreter.get_tensor(output_details[1]['index'])[0]
+        classes = interpreter.get_tensor(output_details[3]['index'])[0]
+        scores = interpreter.get_tensor(output_details[0]['index'])[0]
 
+        imH, imW, _ = frame.shape
 
-        # Loop over all detections and draw detection box if confidence is above minimum threshold
+        # Loop over detections and draw bounding boxes
         for i in range(len(scores)):
-            if ((scores[i] > min_conf) and (scores[i] <= 1.0)):
+            if (scores[i] > min_conf) and (scores[i] <= 1.0):
+                ymin = int(max(1, (boxes[i][0] * imH)))
+                xmin = int(max(1, (boxes[i][1] * imW)))
+                ymax = int(min(imH, (boxes[i][2] * imH)))
+                xmax = int(min(imW, (boxes[i][3] * imW)))
 
-                # Get bounding box coordinates and draw box
-                # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
-                ymin = int(max(1,(boxes[i][0] * imH)))
-                xmin = int(max(1,(boxes[i][1] * imW)))
-                ymax = int(min(imH,(boxes[i][2] * imH)))
-                xmax = int(min(imW,(boxes[i][3] * imW)))
-
-                #--chage frame
-                cv2.rectangle(roi, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2) 
+                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (10, 255, 0), 2)
 
                 # Draw label
-                object_name = labels[int(classes[i])] # Look up object name from "labels" array using class index
-                label = '%s: %d%%' % (object_name, int(scores[i]*100)) # Example: 'person: 72%'
-                labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
-                label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
-                #--chage frame
-                cv2.rectangle(roi, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
-                #--chage frame
-                cv2.putText(roi, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
-                    
-                # Add the prediction to the queue
-                if not prediction_queue.full():  # Avoid blocking if queue is full
+                object_name = labels[int(classes[i])]
+                label = f'{object_name}: {int(scores[i] * 100)}%'
+                cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 
+                            0.5, (0, 255, 0), 2)
+
+                # Add prediction to the queue
+                if not prediction_queue.full():
                     prediction_queue.put(classes[i])
-                        
                 else:
-                    print("Prediction queue is full. Dropping oldest prediction.")
-                    prediction_queue.get()  # Remove the oldest prediction
+                    prediction_queue.get()
                     prediction_queue.put(classes[i])
-                    
-                # Count cherry
+
+                # Count cherries
                 if classes[i] == 1:
                     good_cherry += 1
                 else:
                     bad_cherry += 1
-        
-        # Display frame with bounding box
-        cv2.imshow('Camera', frame)
-        
-        print("qeue: ", prediction_queue.queue)
-        sleep(delay) #second unit
-        
-        # Check for 'q' key press to stop
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            print("Stopping threads...")
-            stop_event.set()
-            break
-        
-    print(f"---\n Summary:\n good cherries: {good_cherry}, bad cherries: {bad_cherry}\n ---\n")
+
+        # Convert the OpenCV frame (BGR) to RGB for Tkinter
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_pil = Pil_image.fromarray(frame_rgb)
+        frame_tk = Pil_imageTk.PhotoImage(frame_pil)
+
+        # Update the label with the new image
+        img_label.config(image=frame_tk)
+        img_label.image = frame_tk
+
+        sleep(delay)
+
+    # Add logo image and summary text after the loop ends
+    logo_image = Pil_image.open("object_detection/cmu_logo.png")
+    resize_image = logo_image.resize((300, 300))
+    logo = Pil_imageTk.PhotoImage(resize_image)
+    Label(window, image=logo).grid(row=0, column=3, columnspan=2, rowspan=2, padx=5, pady=5)
+
+    l1 = Label(window, text="Faculty of Engineering\nChiang Mai University", 
+               justify="center", font=('Arial', 18, 'bold'))
+    l3 = Label(window, text="Coffee Cherry Sorter🍒", justify="center", font=('Arial', 20, 'bold'))
+    l4 = Label(window, text=f"Red cherries: {good_cherry:<2} Green cherries: {bad_cherry}", 
+               justify='center', font=('Arial', 16))
+
+    l1.grid(row=2, column=3, columnspan=2)
+    l3.grid(row=4, column=3, columnspan=2, sticky='N')
+    l4.grid(row=4, column=3, columnspan=2, pady=2)
+
+    window.mainloop()  # Start the Tkinter mainloop
 
 # --- Main Program ---
 if __name__ == "__main__":
@@ -197,7 +204,6 @@ if __name__ == "__main__":
     # Join thrveads (optional, for cleanup on program termination)
     prediction_thread.join()
     servo_thread.join()
-
 
     # Cleanup
     picam2.stop()
