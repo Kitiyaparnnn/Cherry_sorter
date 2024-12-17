@@ -8,7 +8,6 @@ from picamera2 import Picamera2
 from tflite_runtime.interpreter import Interpreter
 import RPi.GPIO as GPIO
 from tkinter import * 
-from tkinter.ttk import *
 from PIL import Image as Pil_image, ImageTk as Pil_imageTk
 
 # Stop signal (shared event)
@@ -33,6 +32,7 @@ def servo_movement(prediction_queue, stop_event):
     Control the servo based on predictions from the queue.
     Result: 0-bad, 1-good
     """
+    print("start servo control...")
     ir = GPIO.input(ir_sensor_gpio)
     ir_count = 0
     while not stop_event.is_set():
@@ -99,97 +99,136 @@ picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
 # x, y, w, h = 0, 0, 500,500
-delay = 0.5 #scond unit
+delay = 0.5 #second unit
 min_conf = 0.7
+
+# --- Window Configuration ---
+class FullScreenApp(object):
+    def __init__(self, master, **kwargs):
+        self.master = master
+        pad = 3
+        self._geom = '200x200+0+0'
+        master.geometry("{0}x{1}+0+0".format(
+            master.winfo_screenwidth() - pad, master.winfo_screenheight() - pad))
 
 # --- Image Classification Thread ---
 def image_classification(prediction_queue, stop_event):
     """Capture images, make predictions, and add them to the queue."""
+    print("start detecting..")
 
     good_cherry = 0
     bad_cherry = 0
 
     # --- GUI Setup ---
     window = Tk()
-    window.title("Cherry Sorter")  
-
-    # Define an image label once (to update dynamically later)
-    img_label = Label(window)
-    img_label.grid(row=0, column=0, columnspan=2, rowspan=5, padx=5, pady=5)
-
-    while not stop_event.is_set():
-        # Capture frame from PiCamera2
-        frame = picam2.capture_array()
-
-        # Perform preprocessing and object detection
-        input_data = preprocess_image(frame)
-        interpreter.set_tensor(input_details[0]['index'], input_data)
-        interpreter.invoke()
-
-        # Retrieve detection results
-        boxes = interpreter.get_tensor(output_details[1]['index'])[0]
-        classes = interpreter.get_tensor(output_details[3]['index'])[0]
-        scores = interpreter.get_tensor(output_details[0]['index'])[0]
-
-        imH, imW, _ = frame.shape
-
-        # Loop over detections and draw bounding boxes
-        for i in range(len(scores)):
-            if (scores[i] > min_conf) and (scores[i] <= 1.0):
-                ymin = int(max(1, (boxes[i][0] * imH)))
-                xmin = int(max(1, (boxes[i][1] * imW)))
-                ymax = int(min(imH, (boxes[i][2] * imH)))
-                xmax = int(min(imW, (boxes[i][3] * imW)))
-
-                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (10, 255, 0), 2)
-
-                # Draw label
-                object_name = labels[int(classes[i])]
-                label = f'{object_name}: {int(scores[i] * 100)}%'
-                cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 
-                            0.5, (0, 255, 0), 2)
-
-                # Add prediction to the queue
-                if not prediction_queue.full():
-                    prediction_queue.put(classes[i])
-                else:
-                    prediction_queue.get()
-                    prediction_queue.put(classes[i])
-
-                # Count cherries
-                if classes[i] == 1:
-                    good_cherry += 1
-                else:
-                    bad_cherry += 1
-
-        # Convert the OpenCV frame (BGR) to RGB for Tkinter
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_pil = Pil_image.fromarray(frame_rgb)
-        frame_tk = Pil_imageTk.PhotoImage(frame_pil)
-
-        # Update the label with the new image
-        img_label.config(image=frame_tk)
-        img_label.image = frame_tk
-
-        sleep(delay)
-
+    app = FullScreenApp(window)
+    window.title("Cherry Sorter") 
+    width = window.winfo_screenwidth()
+    height = window.winfo_screenheight() 
+    
+    # Frame for main content
+    main_frame = Frame(window)
+    main_frame.pack(expand=True, fill="both")
+    
+    # Label for the main image
+    image_label = Label(main_frame, justify = "center")
+    image_label.pack(side="left", expand=True, fill="both", )
+    
+    # Frame for logo and text (right side)
+    right_frame = Frame(main_frame)
+    right_frame.pack(side="left", expand=True, fill="both", pady = 120)
+    
     # Add logo image and summary text after the loop ends
-    logo_image = Pil_image.open("object_detection/cmu_logo.png")
-    resize_image = logo_image.resize((300, 300))
+    logo_image = Pil_image.open("/home/coffeecolor/Cherry_sorter/object_detection/cmu_logo.png")
+    resize_image = logo_image.resize((400, 400))
     logo = Pil_imageTk.PhotoImage(resize_image)
-    Label(window, image=logo).grid(row=0, column=3, columnspan=2, rowspan=2, padx=5, pady=5)
+    logo_label = Label(right_frame, image=logo, justify="center")
+    logo_label.pack()
 
-    l1 = Label(window, text="Faculty of Engineering\nChiang Mai University", 
+    l1 = Label(right_frame, text="Faculty of Engineering\nChiang Mai University", 
                justify="center", font=('Arial', 18, 'bold'))
-    l3 = Label(window, text="Coffee Cherry Sorter🍒", justify="center", font=('Arial', 20, 'bold'))
-    l4 = Label(window, text=f"Red cherries: {good_cherry:<2} Green cherries: {bad_cherry}", 
-               justify='center', font=('Arial', 16))
+    l3 = Label(right_frame, text="Coffee Cherry Sorter", 
+                justify="center", font=('Arial', 24, 'bold'))
+    l4 = Label(right_frame, text=f"Red cherries: {good_cherry:<2} Green cherries: {bad_cherry}", 
+               justify='center', font=('Arial', 12))
 
-    l1.grid(row=2, column=3, columnspan=2)
-    l3.grid(row=4, column=3, columnspan=2, sticky='N')
-    l4.grid(row=4, column=3, columnspan=2, pady=2)
+    l1.pack(pady=10)
+    l3.pack(pady=20)
+    l4.pack(pady=10)
 
-    window.mainloop()  # Start the Tkinter mainloop
+    #while not stop_event.is_set():
+    def capture_img():
+        nonlocal good_cherry, bad_cherry
+        if not stop_event.is_set():
+            # Capture frame from PiCamera2
+            frame = picam2.capture_array()
+
+            # Perform preprocessing and object detection
+            input_data = preprocess_image(frame)
+            interpreter.set_tensor(input_details[0]['index'], input_data)
+            interpreter.invoke()
+
+            # Retrieve detection results
+            boxes = interpreter.get_tensor(output_details[1]['index'])[0]
+            classes = interpreter.get_tensor(output_details[3]['index'])[0]
+            scores = interpreter.get_tensor(output_details[0]['index'])[0]
+
+            imH, imW, _ = frame.shape
+
+            # Loop over detections and draw bounding boxes
+            for i in range(len(scores)):
+                if (scores[i] > min_conf) and (scores[i] <= 1.0):
+                    ymin = int(max(1, (boxes[i][0] * imH)))
+                    xmin = int(max(1, (boxes[i][1] * imW)))
+                    ymax = int(min(imH, (boxes[i][2] * imH)))
+                    xmax = int(min(imW, (boxes[i][3] * imW)))
+
+                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (10, 255, 0), 2)
+
+                    # Draw label
+                    object_name = labels[int(classes[i])]
+                    label = f'{object_name}: {int(scores[i] * 100)}%'
+                    cv2.putText(frame, label, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 
+                                0.5, (0, 255, 0), 2)
+
+                    # Add prediction to the queue
+                    if not prediction_queue.full():
+                        prediction_queue.put(classes[i])
+                    else:
+                        prediction_queue.get()
+                        prediction_queue.put(classes[i])
+
+                    # Count cherries
+                    if classes[i] == 1:
+                        good_cherry += 1
+                    else:
+                        bad_cherry += 1
+                    
+                    l4.config(text=f"Red cherries: {good_cherry:<2} Green cherries: {bad_cherry}")
+            
+            # Convert the OpenCV frame (BGR) to RGB for Tkinter
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame_pil = Pil_image.fromarray(frame_rgb)
+            resize_image = frame_pil.resize((int(width/2), int(width/2)))
+            frame_tk = Pil_imageTk.PhotoImage(resize_image)
+
+            # Update the label with the new image
+            image_label.config(image=frame_tk)
+            image_label.image = frame_tk
+
+            sleep(delay)
+            window.after(500, capture_img)
+    # Updated captured images
+    window.after(0, capture_img)
+    
+    # --- Run the application loop ---
+    def exit(event=None):
+           stop_event.set()
+           window.destroy()
+        
+    window.bind("<Escape>", exit)
+    window.protocol("WM_DELETE_WINDOW", exit)
+    window.mainloop()
 
 # --- Main Program ---
 if __name__ == "__main__":
