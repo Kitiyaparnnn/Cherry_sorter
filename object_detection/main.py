@@ -97,9 +97,8 @@ config = picam2.create_still_configuration(main={"size": (500,500), "format": "R
 picam2.configure(config)
 picam2.start()
 
-#x, y, w, h = 140, 60, 200, 200
-# x, y, w, h = 0, 0, 500,500
-delay = 0.5 #second unit
+delay = 0.5 #s unit
+window_delay = 500 #ms unit; need to be the same as deley time
 min_conf = 0.7
 
 # --- Window Configuration ---

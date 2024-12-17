@@ -8,7 +8,7 @@ source /path/to/tflite-env/bin/activate
 cd /path/to/object_detection
 
 # Step 3: Run the main_object_detection script
-python main_object_detection.py
+python main.py
 
 # Keep the terminal open if an error occurs
 echo "Program terminated. Press Enter to close."
