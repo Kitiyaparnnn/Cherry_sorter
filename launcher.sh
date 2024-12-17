@@ -1,9 +1,15 @@
 #!/bin/sh
 # launcher.sh
-# navigate to home directory, then to this directory, then execute python script, then back home
 
-cd /
-cd home/coffeecolor
-source tflite-env/bin/activate
+# Step 1: Activate the virtual environment
+source /path/to/tflite-env/bin/activate
+
+# Step 2: Navigate to the object_detection folder
+cd /path/to/object_detection
+
+# Step 3: Run the main_object_detection script
 python main_object_detection.py
-cd /
+
+# Keep the terminal open if an error occurs
+echo "Program terminated. Press Enter to close."
+read
