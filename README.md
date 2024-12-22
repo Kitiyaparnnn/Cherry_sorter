@@ -1,4 +1,4 @@
-# Cherry_sorting
+# 🍒Coffee Cherry Color Sorting 
 
 **Dataset**
 
@@ -10,24 +10,29 @@
 
 Make sure TensorFlow Lite runtime is installed on the Raspberry Pi. You can install it with:
 
-`pip3 install tflite-runtime`
+tflite : `pip3 install tflite-runtime`
+
+pillow : `pip3 install pillow`
+
 
 ### Step 1: Activate a virtual environment on Raspberry Pi named "tflite-env"
 
 `source tflite-env/bin/activate`
 
-### Step 2: Load a custom model tflite folder
+### Step 2: Load and copy an object detection folder
 
 `git clone https://github.com/Kitiyaparnnn/Cherry_sorter.git`
 
 `cd Cherry_sorter`
 
-`cp -r object_detection/custom_model_lite ../custom_model/lite`
+`cp -r object_detection ../object_detection`
 
-### Step 3: redirect to the project file
+### Step 3: Redirect to the project file
 
-`cd custom_model_lite/`
+`cd object_detection/`
 
-### Step 3: Run main_picamera.py
+### Step 3: Run program
 
-`python main_object_detection.py`
+- v.1 (using photoelectric sensor) : `python main.py`
+- v.2 (using timer delay) : `python main_wihtout_sensor.py`
+
