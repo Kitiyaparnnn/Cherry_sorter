@@ -34,13 +34,14 @@ def servo_movement(prediction_queue, stop_event):
     """
     print("start servo control...")
     ir = GPIO.input(ir_sensor_gpio)
-    ir_count = 0
+    #ir_count = 0
     while not stop_event.is_set():
         try:
             
-            if ir != GPIO.LOW:
-                ir_count += 1
-            if ir_count > 7:
+            #if ir != GPIO.LOW:
+            #    ir_count += 1
+            #if ir_count > 10:
+            if ir == GPIO.LOW:
                 # Get the next prediction from the queue
                 prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
                 
@@ -49,10 +50,8 @@ def servo_movement(prediction_queue, stop_event):
                     servo.ChangeDutyCycle(12.5)  # Move right
                     sleep(0.5)
                     servo.ChangeDutyCycle(7.5)  # Center position
-                # servo.ChangeDutyCycle(0)  # Stop servo
                 
-                ir_count = 0
-            #sleep(0.5)
+                #ir_count = 0
             
         except queue.Empty:
             continue
