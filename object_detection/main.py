@@ -10,6 +10,9 @@ import RPi.GPIO as GPIO
 from tkinter import * 
 from PIL import Image as Pil_image, ImageTk as Pil_imageTk
 
+# Arduino serial connect
+from render_sensor import render_sensor
+
 # Stop signal (shared event)
 stop_event = threading.Event()
 
@@ -33,27 +36,20 @@ def servo_movement(prediction_queue, stop_event):
     Result: 0-bad, 1-good
     """
     print("start servo control...")
-    #ir_count = 0
     while not stop_event.is_set():
-        ir = GPIO.input(ir_sensor_gpio)
+        ir = render_sensor()
         try:
-            
-            #if ir != GPIO.LOW:
-            #    ir_count += 1
-            #if ir_count > 10:
             print("sensor input", ir)
-            if ir == 0:
+            if ir == 0: #sensor detects object
                 # Get the next prediction from the queue
                 prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
-                print("pred at servo", prediction)
+                #print("pred at servo", prediction)
                 
                 # Move the servo based on the prediction when ir sensor triggers
                 if np.any(prediction == 0):
                     servo.ChangeDutyCycle(12.5)  # Move right
                     sleep(0.3)
                     servo.ChangeDutyCycle(7.5)  # Center position
-                
-                #ir_count = 0
             
         except queue.Empty:
             continue
