@@ -14,7 +14,7 @@ from PIL import Image as Pil_image, ImageTk as Pil_imageTk
 stop_event = threading.Event()
 
 # GPIO port setup
-GPIO.setmode(GPIO.BOARD)
+GPIO.setmode(GPIO.BCM)
 ir_sensor_gpio = 5
 servo_moter = 11
 
@@ -33,22 +33,24 @@ def servo_movement(prediction_queue, stop_event):
     Result: 0-bad, 1-good
     """
     print("start servo control...")
-    ir = GPIO.input(ir_sensor_gpio)
     #ir_count = 0
     while not stop_event.is_set():
+        ir = GPIO.input(ir_sensor_gpio)
         try:
             
             #if ir != GPIO.LOW:
             #    ir_count += 1
             #if ir_count > 10:
-            if ir == GPIO.LOW:
+            print("sensor input", ir)
+            if ir == 0:
                 # Get the next prediction from the queue
                 prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
+                print("pred at servo", prediction)
                 
                 # Move the servo based on the prediction when ir sensor triggers
                 if np.any(prediction == 0):
                     servo.ChangeDutyCycle(12.5)  # Move right
-                    sleep(0.5)
+                    sleep(0.3)
                     servo.ChangeDutyCycle(7.5)  # Center position
                 
                 #ir_count = 0
