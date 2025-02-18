@@ -18,16 +18,15 @@ stop_event = threading.Event()
 
 # GPIO port setup
 GPIO.setmode(GPIO.BCM)
-ir_sensor_gpio = 5
+#ir_sensor_gpio = 5
 servo_moter = 11
 
 # --- IR Sensor Setup ---
-GPIO.setup(ir_sensor_gpio,GPIO.IN)
+#GPIO.setup(ir_sensor_gpio,GPIO.IN)
 
 # --- Servo Setup ---
 GPIO.setup(servo_moter, GPIO.OUT)
-servo = GPIO.PWM(servo_moter, 50)
-servo.start(2.5)
+#servo = GPIO.PWM(servo_moter, 50)
 
 
 def servo_movement(prediction_queue, stop_event):
@@ -47,9 +46,10 @@ def servo_movement(prediction_queue, stop_event):
                 
                 # Move the servo based on the prediction when ir sensor triggers
                 if np.any(prediction == 0):
-                    servo.ChangeDutyCycle(12.5)  # Move right
-                    sleep(0.3)
-                    servo.ChangeDutyCycle(7.5)  # Center position
+                    #servo.ChangeDutyCycle(12.5)  # Move right
+                    #sleep(0.3)
+                    #servo.ChangeDutyCycle(7.5)  # Center position
+                    GPIO.output(servo_moter,1)
             
         except queue.Empty:
             continue
