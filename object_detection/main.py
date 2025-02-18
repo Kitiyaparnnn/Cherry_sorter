@@ -38,7 +38,7 @@ def servo_movement(prediction_queue, stop_event):
     while not stop_event.is_set():
         ir = render_sensor()
         try:
-            print("sensor input", ir)
+            #print("sensor input", ir)
             if ir == 0: #sensor detects object
                 # Get the next prediction from the queue
                 prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
@@ -103,7 +103,7 @@ min_conf = 0.7
 class FullScreenApp(object):
     def __init__(self, master, **kwargs):
         self.master = master
-        pad = 3
+        pad = 0
         self._geom = '200x200+0+0'
         master.geometry("{0}x{1}+0+0".format(
             master.winfo_screenwidth() - pad, master.winfo_screenheight() - pad))
@@ -122,10 +122,9 @@ def image_classification(prediction_queue, stop_event):
     window.title("Cherry Sorter") 
     width = window.winfo_screenwidth()
     height = window.winfo_screenheight() 
-    
     # Frame for main content
     main_frame = Frame(window)
-    main_frame.pack(expand=True, fill="both")
+    main_frame.pack(expand=False, fill="both")
     
     # Label for the main image
     image_label = Label(main_frame, justify = "center")
@@ -133,11 +132,11 @@ def image_classification(prediction_queue, stop_event):
     
     # Frame for logo and text (right side)
     right_frame = Frame(main_frame)
-    right_frame.pack(side="left", expand=True, fill="both", pady = 120)
+    right_frame.pack(side="left", expand=True, fill="both", pady = 0)
     
     # Add logo image and summary text after the loop ends
     logo_image = Pil_image.open("/home/coffeecolor/Cherry_sorter/object_detection/cmu_logo.png")
-    resize_image = logo_image.resize((400, 400))
+    resize_image = logo_image.resize((200, 200))
     logo = Pil_imageTk.PhotoImage(resize_image)
     logo_label = Label(right_frame, image=logo, justify="center")
     logo_label.pack()
