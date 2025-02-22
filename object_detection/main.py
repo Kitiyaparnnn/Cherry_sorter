@@ -35,28 +35,31 @@ def servo_movement(prediction_queue, stop_event):
     Result: 0-bad, 1-good
     """
     print("start servo control...")
+    
     while not stop_event.is_set():
         ir = render_sensor()
-        try:
-            #print("sensor input", ir)
-            if ir == 0: #sensor detects object
-                # Get the next prediction from the queue
-                #prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
-                prediction = prediction_queue.get(timeout=1)
-                print("pred at servo", prediction)
-                
-                # Move the servo based on the prediction when ir sensor triggers
-                if np.any(prediction == 0):
-                    print("trigger")
-                    #servo.ChangeDutyCycle(12.5)  # Move right
-                    #sleep(0.3)
-                    #servo.ChangeDutyCycle(7.5)  # Center position
-                    GPIO.output(servo_moter,GPIO.HIGH)
-                    sleep(5)
-                    GPIO.output(servo_moter,GPIO.LOW)
+        latest_prediction = None
+        print(f"ir: {ir}, pred: {list(prediction_queue.queue)}")
+        # Retrieve the latest available prediction
+        if not prediction_queue.empty():
+            latest_prediction = prediction_queue.get()
+        print(f"pred@servo: {latest_prediction}")
+        
+        if ir == 0:  # Sensor detects object
+            # Get the most recent value
             
-        except queue.Empty:
-            continue
+            if latest_prediction is not None:  # Ensure we have a valid prediction
+                #print("Pred at servo:", latest_prediction)
+
+                # Move the servo based on the latest prediction
+                if latest_prediction == 0:
+                    print("Trigger")
+                    GPIO.output(servo_moter, GPIO.HIGH)
+                    sleep(5)
+                    GPIO.output(servo_moter, GPIO.LOW)  # Stop servo instead of cleanup
+            
+        #except queue.Empty:
+         #   continue
 
 # --- Prediction Setup ---
 PATH_TO_LABELS = 'custom_model_lite_new2/labelmap.txt'
@@ -205,7 +208,7 @@ def image_classification(prediction_queue, stop_event):
                         bad_cherry += 1
                     
                     l4.config(text=f"Red cherries: {good_cherry:<2} Green cherries: {bad_cherry}")
-            
+                    
             # Convert the OpenCV frame (BGR) to RGB for Tkinter
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frame_pil = Pil_image.fromarray(frame_rgb)
@@ -247,5 +250,4 @@ if __name__ == "__main__":
     # Cleanup
     picam2.stop()
     cv2.destroyAllWindows()
-    servo.stop()
     GPIO.cleanup()
