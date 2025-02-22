@@ -17,9 +17,9 @@ from render_sensor import render_sensor
 stop_event = threading.Event()
 
 # GPIO port setup
-GPIO.setmode(GPIO.BCM)
+GPIO.setmode(GPIO.BOARD)
 #ir_sensor_gpio = 5
-servo_moter = 11
+servo_moter = 11 #
 
 # --- IR Sensor Setup ---
 #GPIO.setup(ir_sensor_gpio,GPIO.IN)
@@ -41,15 +41,19 @@ def servo_movement(prediction_queue, stop_event):
             #print("sensor input", ir)
             if ir == 0: #sensor detects object
                 # Get the next prediction from the queue
-                prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
-                #print("pred at servo", prediction)
+                #prediction = prediction_queue.get_nowait()  # Non-blocking, raises queue.Empty if empty
+                prediction = prediction_queue.get(timeout=1)
+                print("pred at servo", prediction)
                 
                 # Move the servo based on the prediction when ir sensor triggers
                 if np.any(prediction == 0):
+                    print("trigger")
                     #servo.ChangeDutyCycle(12.5)  # Move right
                     #sleep(0.3)
                     #servo.ChangeDutyCycle(7.5)  # Center position
-                    GPIO.output(servo_moter,1)
+                    GPIO.output(servo_moter,GPIO.HIGH)
+                    sleep(5)
+                    GPIO.output(servo_moter,GPIO.LOW)
             
         except queue.Empty:
             continue
@@ -96,7 +100,7 @@ picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
 # x, y, w, h = 0, 0, 500,500
-delay = 0.5 #second unit
+delay = 1 #second unit
 min_conf = 0.7
 
 # --- Window Configuration ---
@@ -228,7 +232,7 @@ def image_classification(prediction_queue, stop_event):
 
 # --- Main Program ---
 if __name__ == "__main__":
-    prediction_queue = queue.Queue()  # Queue to share predictions between threads
+    prediction_queue = queue.Queue(maxsize=5)  # Queue to share predictions between threads
 
     # Create and start threads
     prediction_thread = threading.Thread(target=image_classification, args=(prediction_queue,stop_event))
