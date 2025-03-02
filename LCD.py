@@ -30,37 +30,73 @@ from PIL import Image
 
 # import tkinter module
 from tkinter import * 
-from tkinter.ttk import *
+#from tkinter.ttk import *
 from PIL import Image as Pil_image, ImageTk as Pil_imageTk
 
-# creating main tkinter window/toplevel
+class FullScreenApp(object):
+    def __init__(self, master, **kwargs):
+        self.master = master
+        pad = 3
+        self._geom = '200x200+0+0'
+        master.geometry("{0}x{1}+0+0".format(
+            master.winfo_screenwidth() - pad, master.winfo_screenheight() - pad))
+        #master.bind('<Escape>', self.toggle_geom) 
+          
+    def toggle_geom(self, event):
+        geom = self.master.winfo_geometry()
+        self.master.geometry(self._geom)
+        self._geom = geom
+        
+# --- Create main tkinter window ---
 window = Tk()
+app = FullScreenApp(window)
 window.title("Cherry Sorter")
+width = window.winfo_screenwidth()
+height = window.winfo_screenheight()
+print(width, height)
 
-# adding image (remember image should be PNG and not JPG)
-img = PhotoImage(file = "test_img.png")
-img1 = img.subsample(2, 2)
-# setting image with the help of label
-Label(window, image = img1).grid(row = 0, column = 0,
-       columnspan = 2, rowspan = 5, padx = 5, pady = 5)
+# --- Frame for main content ---
+main_frame = Frame(window)
+main_frame.pack(expand=True, fill="both")
 
-# adding logo image
+# --- Adding image (PNG only) ---
+image = Pil_image.open("/home/coffeecolor/Cherry_sorter/dataset/multiple_pi/image_1_20241214-130840.jpg")
+resize_image = image.resize((int(width/2), int(720)))
+img = Pil_imageTk.PhotoImage(resize_image)
+
+# Label for the main image
+image_label = Label(main_frame, image=img, justify = "center")
+image_label.pack(side="left", expand=True, fill="both", )
+
+# --- Adding logo image ---
 logo_image = Pil_image.open("object_detection/cmu_logo.png")
-resize_image = logo_image.resize((300, 300))
+resize_image = logo_image.resize((400, 400))
 logo = Pil_imageTk.PhotoImage(resize_image)
-Label(window, image = logo).grid(row = 0, column = 3,
-       columnspan = 2, rowspan = 2, padx = 5, pady = 5)
 
-# this will create a label widget
-l1 = Label(window, text = "Faculty of Engineering\nChiang Mai University", justify="center",font=('Arial', 18,'bold'))
-l2 = Label(window, text = "",justify='center',font=('Arial', 18,'bold'))
-l3 = Label(window, text = "Coffee Cherry Sorter🍒",justify="center",font=('Arial', 20,'bold'))
-l4 = Label(window, text = f"Red cherries: 123, Green cherries: 234",justify='center',font=('Arial', 16))
-l1.grid(row = 2, column = 3,columnspan = 2)
-l2.grid(row = 2, column = 3,columnspan = 2,sticky='N',pady=2)
-l3.grid(row = 4, column = 3,columnspan = 2,sticky='N')
-l4.grid(row = 4, column = 3,columnspan = 2,pady=2)
+# Frame for logo and text (right side)
+right_frame = Frame(main_frame)
+right_frame.pack(side="left", expand=True, fill="both", pady = 120)
 
-# infinite loop which can be terminated 
-# by keyboard or mouse interrupt
-mainloop()
+logo_label = Label(right_frame, image=logo, justify="center")
+logo_label.pack()  # Adds spacing around the logo
+
+# --- Adding labels ---
+l1 = Label(right_frame, text="Faculty of Engineering\nChiang Mai University", 
+           justify="center", font=('Arial', 18, 'bold'))
+l1.pack(pady=10)
+
+l3 = Label(right_frame, text="Coffee Cherry Sorter", 
+           justify="center", font=('Arial', 20, 'bold'))
+l3.pack(pady=20)
+
+l4 = Label(right_frame, text=f"Red cherries: 123, Green cherries: 234", 
+           justify="center", font=('Arial', 16))
+l4.pack(pady=10)
+
+# --- Run the application loop ---
+def exit(event):
+       #stop_event.set()
+       window.destroy()
+    
+window.bind("<Escape>", exit)
+window.mainloop()

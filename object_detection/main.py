@@ -38,24 +38,23 @@ def servo_movement(prediction_queue, stop_event):
     
     while not stop_event.is_set():
         ir = render_sensor()
-        latest_prediction = None
         print(f"ir: {ir}, pred: {list(prediction_queue.queue)}")
-        # Retrieve the latest available prediction
-        if not prediction_queue.empty():
-            latest_prediction = prediction_queue.get()
-        print(f"pred@servo: {latest_prediction}")
         
-        if ir == 0:  # Sensor detects object
-            # Get the most recent value
+        if ir == "0":  # Sensor detects object
+            #latest_prediction = None
+            # Retrieve the latest available prediction
+            #if not prediction_queue.empty():
+            latest_prediction = prediction_queue.get_nowait()
+            print(f"pred@servo: {latest_prediction}")
             
             if latest_prediction is not None:  # Ensure we have a valid prediction
                 #print("Pred at servo:", latest_prediction)
 
                 # Move the servo based on the latest prediction
-                if latest_prediction == 0:
+                if latest_prediction == 0.0:
                     print("Trigger")
                     GPIO.output(servo_moter, GPIO.HIGH)
-                    sleep(5)
+                    sleep(0.5)
                     GPIO.output(servo_moter, GPIO.LOW)  # Stop servo instead of cleanup
             
         #except queue.Empty:
@@ -235,7 +234,7 @@ def image_classification(prediction_queue, stop_event):
 
 # --- Main Program ---
 if __name__ == "__main__":
-    prediction_queue = queue.Queue(maxsize=5)  # Queue to share predictions between threads
+    prediction_queue = queue.Queue()  # Queue to share predictions between threads
 
     # Create and start threads
     prediction_thread = threading.Thread(target=image_classification, args=(prediction_queue,stop_event))
