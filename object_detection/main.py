@@ -19,7 +19,7 @@ stop_event = threading.Event()
 # GPIO port setup
 GPIO.setmode(GPIO.BOARD)
 #ir_sensor_gpio = 5
-servo_moter = 11 #
+servo_moter = 40 
 
 # --- IR Sensor Setup ---
 #GPIO.setup(ir_sensor_gpio,GPIO.IN)
@@ -41,11 +41,11 @@ def servo_movement(prediction_queue, stop_event):
         print(f"ir: {ir}, pred: {list(prediction_queue.queue)}")
         
         if ir == "0":  # Sensor detects object
-            #latest_prediction = None
+            latest_prediction = None
             # Retrieve the latest available prediction
-            #if not prediction_queue.empty():
-            latest_prediction = prediction_queue.get_nowait()
-            print(f"pred@servo: {latest_prediction}")
+            if not prediction_queue.empty():
+                latest_prediction = prediction_queue.get_nowait()
+                print(f"pred@servo: {latest_prediction}")
             
             if latest_prediction is not None:  # Ensure we have a valid prediction
                 #print("Pred at servo:", latest_prediction)
@@ -102,7 +102,7 @@ picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
 # x, y, w, h = 0, 0, 500,500
-delay = 1 #second unit
+delay = 1.5 #second unit
 min_conf = 0.7
 
 # --- Window Configuration ---
