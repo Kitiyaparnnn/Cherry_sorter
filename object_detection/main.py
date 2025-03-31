@@ -26,7 +26,7 @@ servo_moter = 40
 
 # --- Servo Setup ---
 GPIO.setup(servo_moter, GPIO.OUT)
-#servo = GPIO.PWM(servo_moter, 50)
+servo_up_time = 0.5
 
 
 def servo_movement(prediction_queue, stop_event):
@@ -50,11 +50,11 @@ def servo_movement(prediction_queue, stop_event):
             if latest_prediction is not None:  # Ensure we have a valid prediction
                 #print("Pred at servo:", latest_prediction)
 
-                # Move the servo based on the latest prediction
+                # Move the servo if it is a bad cherry
                 if latest_prediction == 0.0:
                     print("Trigger")
                     GPIO.output(servo_moter, GPIO.HIGH)
-                    sleep(0.5)
+                    sleep(servo_up_time)
                     GPIO.output(servo_moter, GPIO.LOW)  # Stop servo instead of cleanup
             
         #except queue.Empty:
@@ -102,8 +102,9 @@ picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
 # x, y, w, h = 0, 0, 500,500
-delay = 1.5 #second unit
+detect_delay = 1.5 #second unit
 min_conf = 0.7
+display_delay = 500 #100 = 1 sec
 
 # --- Window Configuration ---
 class FullScreenApp(object):
@@ -218,8 +219,8 @@ def image_classification(prediction_queue, stop_event):
             image_label.config(image=frame_tk)
             image_label.image = frame_tk
 
-            sleep(delay)
-            window.after(500, capture_img)
+            sleep(detect_delay)
+            window.after(display_delay, capture_img)
     # Updated captured images
     window.after(0, capture_img)
     
