@@ -26,7 +26,7 @@ servo_moter = 40
 
 # --- Servo Setup ---
 GPIO.setup(servo_moter, GPIO.OUT)
-servo_up_time = 0.5
+servo_up_time = 1.5
 
 
 def servo_movement(prediction_queue, stop_event):
@@ -40,7 +40,7 @@ def servo_movement(prediction_queue, stop_event):
         ir = render_sensor()
         print(f"ir: {ir}, pred: {list(prediction_queue.queue)}")
         
-        if ir == "0":  # Sensor detects object
+        if ir == "5":  # Sensor detects object
             latest_prediction = None
             # Retrieve the latest available prediction
             if not prediction_queue.empty():
@@ -102,9 +102,9 @@ picam2.start()
 
 #x, y, w, h = 140, 60, 200, 200
 # x, y, w, h = 0, 0, 500,500
-detect_delay = 1.5 #second unit
+detect_delay = 2.5 #second unit
 min_conf = 0.7
-display_delay = 500 #100 = 1 sec
+display_delay = 500 #1000 = 1 sec
 
 # --- Window Configuration ---
 class FullScreenApp(object):
